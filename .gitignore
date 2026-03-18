@@ -1,0 +1,17 @@
+# ─── Secretos / configuración local ──────────────────────────
+.env
+ssh/authorized_keys
+ssh/
+
+# ─── Docker ───────────────────────────────────────────────────
+# (nada que ignorar específico de docker-compose acá)
+
+# ─── Proyectos montados como volumen ──────────────────────────
+projects/
+
+# ─── OS / Editor ──────────────────────────────────────────────
+.DS_Store
+.idea/
+*.swp
+*.swo
+*~

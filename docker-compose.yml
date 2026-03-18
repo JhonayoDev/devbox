@@ -1,0 +1,56 @@
+# ─────────────────────────────────────────────────────────────
+#  devbox — docker-compose.yml
+#
+#  Uso:
+#    cp .env.example .env        (y editá los valores)
+#    docker compose up -d --build
+# ─────────────────────────────────────────────────────────────
+
+services:
+  devbox:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        USERNAME: ${DEV_USERNAME:-juan}
+        USER_UID: ${DEV_UID:-1000}
+        USER_GID: ${DEV_GID:-1000}
+        DOTFILES_REPO: ${DOTFILES_REPO:-}
+
+    container_name: devbox
+
+    # Puerto SSH: en tu PC local usás 2222, en el servidor podés cambiarlo
+    ports:
+      - "${SSH_PORT:-2222}:22"
+
+    volumes:
+      # ── Proyectos ──────────────────────────────────────────
+      # Tus proyectos viven en el HOST, no en el contenedor.
+      # Si recreás el contenedor, el código no se pierde.
+      - ${DEV_PROJECTS_PATH:-./projects}:/home/${DEV_USERNAME:-juan}/dev
+
+      # ── SSH host keys (persistencia entre reinicios) ───────
+      # Así Termius no te avisa de "host key changed" cada vez
+      - devbox_ssh_host_keys:/etc/ssh
+
+      # ── authorized_keys (tu clave pública) ────────────────
+      # El archivo se monta read-only; el entrypoint lo copia
+      # al lugar correcto con los permisos que exige SSH.
+      - ${SSH_AUTHORIZED_KEYS_PATH:-./ssh/authorized_keys}:/run/secrets/authorized_keys:ro
+
+    environment:
+      USERNAME: ${DEV_USERNAME:-juan}
+      TZ: ${TIMEZONE:-America/Argentina/Buenos_Aires}
+
+    restart: unless-stopped
+
+    # Healthcheck: verifica que el puerto SSH responda
+    healthcheck:
+      test: ["CMD", "sh", "-c", "ss -tlnp | grep ':22'"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+
+volumes:
+  devbox_ssh_host_keys:
