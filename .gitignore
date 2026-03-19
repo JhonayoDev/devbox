@@ -15,3 +15,5 @@ projects/
 *.swp
 *.swo
 *~
+nvim/
+ssh-host-keys/

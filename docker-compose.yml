@@ -4,6 +4,10 @@
 #  Uso:
 #    cp .env.example .env        (y editá los valores)
 #    docker compose up -d --build
+#
+#  Para borrar todo (contenedor + datos persistidos):
+#    docker compose down
+#    rm -rf /srv/datos/dev/devbox/nvim /srv/datos/dev/devbox/ssh-host-keys
 # ─────────────────────────────────────────────────────────────
 
 services:
@@ -13,30 +17,42 @@ services:
       dockerfile: Dockerfile
       args:
         USERNAME: ${DEV_USERNAME:-juan}
-        USER_UID: ${DEV_UID:-1000}
+        User_UID: ${DEV_UID:-1000}
         USER_GID: ${DEV_GID:-1000}
         DOTFILES_REPO: ${DOTFILES_REPO:-}
 
     container_name: devbox
-
-    # Puerto SSH: en tu PC local usás 2222, en el servidor podés cambiarlo
+    hostname: devbox
     ports:
       - "${SSH_PORT:-2222}:22"
 
     volumes:
       # ── Proyectos ──────────────────────────────────────────
-      # Tus proyectos viven en el HOST, no en el contenedor.
-      # Si recreás el contenedor, el código no se pierde.
+      # El código vive en el host — sobrevive cualquier recreación
       - ${DEV_PROJECTS_PATH:-./projects}:/home/${DEV_USERNAME:-juan}/dev
 
-      # ── SSH host keys (persistencia entre reinicios) ───────
-      # Así Termius no te avisa de "host key changed" cada vez
-      - devbox_ssh_host_keys:/etc/ssh
+      # ── SSH host keys ──────────────────────────────────────
+      # Monta cada key individualmente para NO pisar el sshd_config
+      # que el Dockerfile configura dentro del contenedor.
+      - ./ssh-host-keys/ssh_host_rsa_key:/etc/ssh/ssh_host_rsa_key
+      - ./ssh-host-keys/ssh_host_rsa_key.pub:/etc/ssh/ssh_host_rsa_key.pub
+      - ./ssh-host-keys/ssh_host_ecdsa_key:/etc/ssh/ssh_host_ecdsa_key
+      - ./ssh-host-keys/ssh_host_ecdsa_key.pub:/etc/ssh/ssh_host_ecdsa_key.pub
+      - ./ssh-host-keys/ssh_host_ed25519_key:/etc/ssh/ssh_host_ed25519_key
+      - ./ssh-host-keys/ssh_host_ed25519_key.pub:/etc/ssh/ssh_host_ed25519_key.pub
 
-      # ── authorized_keys (tu clave pública) ────────────────
-      # El archivo se monta read-only; el entrypoint lo copia
-      # al lugar correcto con los permisos que exige SSH.
+      # ── authorized_keys (clave pública del cliente) ────────
       - ${SSH_AUTHORIZED_KEYS_PATH:-./ssh/authorized_keys}:/run/secrets/authorized_keys:ro
+
+      # ── Persistencia de Neovim ────────────────────────────
+      # Bind mounts dentro de la carpeta del proyecto.
+      # Para resetear nvim: rm -rf ./nvim/
+      # Para borrar todo el devbox: eliminás la carpeta devbox/ completa
+      #
+      # ./nvim/data  → plugins de Lazy + binarios de Mason (jdtls, etc.)
+      # ./nvim/cache → parsers de treesitter compilados, cache general
+      - ./nvim/data:/home/${DEV_USERNAME:-juan}/.local/share/nvim
+      - ./nvim/cache:/home/${DEV_USERNAME:-juan}/.cache/nvim
 
     environment:
       USERNAME: ${DEV_USERNAME:-juan}
@@ -44,13 +60,9 @@ services:
 
     restart: unless-stopped
 
-    # Healthcheck: verifica que el puerto SSH responda
     healthcheck:
       test: ["CMD", "sh", "-c", "ss -tlnp | grep ':22'"]
       interval: 30s
       timeout: 5s
       retries: 3
       start_period: 10s
-
-volumes:
-  devbox_ssh_host_keys:
