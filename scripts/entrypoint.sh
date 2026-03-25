@@ -38,5 +38,6 @@ elif [ ! -f "$TARGET_KEYS" ]; then
 fi
 
 # ─── Iniciar SSH ──────────────────────────────────────────────
+chmod 600 /etc/ssh/ssh_host_*_key
 echo "[devbox] Arrancando sshd..."
 exec /usr/sbin/sshd -D -e
