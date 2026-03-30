@@ -1,10 +1,16 @@
 # ─── Secretos / configuración local ──────────────────────────
 .env
-ssh/authorized_keys
 ssh/
+ssh/authorized_keys
 
-# ─── Docker ───────────────────────────────────────────────────
-# (nada que ignorar específico de docker-compose acá)
+# ─── Datos de runtime ─────────────────────────────────────────
+# Generados al levantar el contenedor — no van al repo.
+# Para borrar todo: docker compose down && rm -rf nvim/ ssh-host-keys/
+nvim/
+ssh-host-keys/
+
+# ─── Datos de bases de datos (dev-services) ───────────────────
+dev-services/data/
 
 # ─── Proyectos montados como volumen ──────────────────────────
 projects/
@@ -15,5 +21,4 @@ projects/
 *.swp
 *.swo
 *~
-nvim/
-ssh-host-keys/
+

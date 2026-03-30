@@ -2,12 +2,11 @@
 #  devbox — docker-compose.yml
 #
 #  Uso:
-#    cp .env.example .env        (y editá los valores)
+#    cp env.example .env     (completar valores)
 #    docker compose up -d --build
 #
-#  Para borrar todo (contenedor + datos persistidos):
-#    docker compose down
-#    rm -rf /srv/datos/dev/devbox/nvim /srv/datos/dev/devbox/ssh-host-keys
+#  Para resetear nvim:       rm -rf ./nvim/
+#  Para borrar todo:         docker compose down && rm -rf ./nvim/ ./ssh-host-keys/
 # ─────────────────────────────────────────────────────────────
 
 services:
@@ -16,24 +15,25 @@ services:
       context: .
       dockerfile: Dockerfile
       args:
-        USERNAME: ${DEV_USERNAME:-juan}
-        User_UID: ${DEV_UID:-1000}
+        USERNAME: ${DEV_USERNAME:-user}
+        USER_UID: ${DEV_UID:-1000}
         USER_GID: ${DEV_GID:-1000}
         DOTFILES_REPO: ${DOTFILES_REPO:-}
 
     container_name: devbox
-    hostname: devbox
+
     ports:
       - "${SSH_PORT:-2222}:22"
 
     volumes:
       # ── Proyectos ──────────────────────────────────────────
       # El código vive en el host — sobrevive cualquier recreación
-      - ${DEV_PROJECTS_PATH:-./projects}:/home/${DEV_USERNAME:-juan}/dev
+      - ${DEV_PROJECTS_PATH:-./projects}:/home/${DEV_USERNAME:-user}/dev
 
-      # ── SSH host keys ──────────────────────────────────────
-      # Monta cada key individualmente para NO pisar el sshd_config
+      # ── SSH host keys (por archivo) ────────────────────────
+      # Se montan individualmente para NO pisar el sshd_config
       # que el Dockerfile configura dentro del contenedor.
+      # Los permisos los corrige entrypoint.sh al arrancar.
       - ./ssh-host-keys/ssh_host_rsa_key:/etc/ssh/ssh_host_rsa_key
       - ./ssh-host-keys/ssh_host_rsa_key.pub:/etc/ssh/ssh_host_rsa_key.pub
       - ./ssh-host-keys/ssh_host_ecdsa_key:/etc/ssh/ssh_host_ecdsa_key
@@ -41,23 +41,27 @@ services:
       - ./ssh-host-keys/ssh_host_ed25519_key:/etc/ssh/ssh_host_ed25519_key
       - ./ssh-host-keys/ssh_host_ed25519_key.pub:/etc/ssh/ssh_host_ed25519_key.pub
 
-      # ── authorized_keys (clave pública del cliente) ────────
+      # ── authorized_keys (clave pública del cliente SSH) ────
+      # El entrypoint la copia al lugar correcto con chmod 600
       - ${SSH_AUTHORIZED_KEYS_PATH:-./ssh/authorized_keys}:/run/secrets/authorized_keys:ro
 
-      # ── Persistencia de Neovim ────────────────────────────
-      # Bind mounts dentro de la carpeta del proyecto.
-      # Para resetear nvim: rm -rf ./nvim/
-      # Para borrar todo el devbox: eliminás la carpeta devbox/ completa
-      #
+      # ── Persistencia de Neovim ─────────────────────────────
+      # Sin estos bind mounts, cada recreación reinstala todos
+      # los plugins, LSPs y parsers de treesitter desde cero.
       # ./nvim/data  → plugins de Lazy + binarios de Mason (jdtls, etc.)
       # ./nvim/cache → parsers de treesitter compilados, cache general
-      - ./nvim/data:/home/${DEV_USERNAME:-juan}/.local/share/nvim
-      - ./nvim/cache:/home/${DEV_USERNAME:-juan}/.cache/nvim
-      # ruta de servicio en server, comentar en otros
-      - ${SERVER_SERVICES_PATH:-}:/home/jhonayo/docker-services
+      - ./nvim/data:/home/${DEV_USERNAME:-user}/.local/share/nvim
+      - ./nvim/cache:/home/${DEV_USERNAME:-user}/.cache/nvim
+
+      # ── Servicios del servidor (opcional) ─────────────────
+      # Montá una carpeta del host para editarla con nvim desde el devbox.
+      # Comentar o dejar vacío si no aplica en este entorno.
+      # Ejemplo en servidor: SERVER_SERVICES_PATH=/opt/docker
+      # ${SERVER_SERVICES_PATH}:/home/${DEV_USERNAME:-user}/docker-services
+
     environment:
-      USERNAME: ${DEV_USERNAME:-juan}
-      TZ: ${TIMEZONE:-America/Argentina/Buenos_Aires}
+      USERNAME: ${DEV_USERNAME:-user}
+      TZ: ${TIMEZONE:-America/Santiago}
 
     restart: unless-stopped
 

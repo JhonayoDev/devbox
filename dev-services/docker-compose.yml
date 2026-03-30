@@ -1,0 +1,81 @@
+# ─────────────────────────────────────────────────────────────
+#  dev-services — docker-compose.yml
+#
+#  Bases de datos on-demand para desarrollo local.
+#  Se levantan independientemente del devbox.
+#
+#  Uso:
+#    cd dev-services
+#    docker compose up -d mysql          → solo MySQL
+#    docker compose up -d mysql redis    → MySQL + Redis
+#    docker compose up -d                → todos
+#    docker compose down                 → bajar todos
+#
+#  Las variables vienen del .env en la carpeta raíz del devbox.
+#  Cargalas antes de correr: set -a && source ../.env && set +a
+#  O usá el alias: alias devdb='cd dev-services && docker compose'
+#
+#  Conexión desde el devbox (usar IP del servidor o localhost):
+#    MySQL:      jdbc:mysql://HOST:3306/devdb
+#    PostgreSQL: jdbc:postgresql://HOST:5432/devdb
+#    Redis:      HOST:6379
+# ─────────────────────────────────────────────────────────────
+
+services:
+
+  # ── MySQL 8.0 ─────────────────────────────────────────────
+  mysql:
+    image: mysql:8.0
+    container_name: devbox-mysql
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-rootpassword}
+      MYSQL_DATABASE: ${MYSQL_DATABASE:-devdb}
+      MYSQL_USER: ${MYSQL_USER:-dev}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD:-devpassword}
+    ports:
+      - "${MYSQL_PORT:-3306}:3306"
+    volumes:
+      - ./data/mysql:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-p${MYSQL_ROOT_PASSWORD:-rootpassword}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+
+  # ── PostgreSQL 16 ──────────────────────────────────────────
+  postgres:
+    image: postgres:16-alpine
+    container_name: devbox-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-devdb}
+      POSTGRES_USER: ${POSTGRES_USER:-dev}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-devpassword}
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
+    volumes:
+      - ./data/postgres:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-dev} -d ${POSTGRES_DB:-devdb}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+
+  # ── Redis 7 ───────────────────────────────────────────────
+  redis:
+    image: redis:7-alpine
+    container_name: devbox-redis
+    restart: unless-stopped
+    ports:
+      - "${REDIS_PORT:-6379}:6379"
+    volumes:
+      - ./data/redis:/data
+    command: redis-server --appendonly yes
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5

@@ -1,10 +1,15 @@
 # ─────────────────────────────────────────────────────────────
 #  devbox — entorno de desarrollo personal con SSH
-#  Base: Debian Bookworm
+#  Base: Ubuntu 24.04
+#
+#  Uso:
+#    docker compose up -d --build
+#
+#  Para actualizar Neovim: cambiar NVIM_VERSION y --no-cache
 # ─────────────────────────────────────────────────────────────
 FROM ubuntu:24.04
 
-ARG USERNAME=juan
+ARG USERNAME=user
 ARG USER_UID=1000
 ARG USER_GID=1000
 ARG DOTFILES_REPO
@@ -13,8 +18,8 @@ ARG DOTFILES_REPO
 RUN apt-get update && apt-get install -y --no-install-recommends \
   # SSH
   openssh-server \
-  # Build tools — gcc incluido en build-essential
-  # make es requerido por nvim-treesitter para compilar parsers
+  # Build tools
+  # make: requerido por nvim-treesitter para compilar parsers
   build-essential \
   make \
   libssl-dev \
@@ -26,56 +31,60 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
   locales \
   tzdata \
   sudo \
-  # tar + gzip: Mason los usa para descomprimir binarios de LSPs/formatters
+  # tar + gzip: Mason los usa para descomprimir binarios de LSPs
   tar \
   gzip \
-  # Requeridos por nvim / plugins
+  # Herramientas de terminal requeridas por nvim/LazyVim
   ripgrep \
   fd-find \
   fzf \
+  tree \
   xclip xsel \
   # bat: LazyVim lo usa para previews en Snacks/Telescope
   bat \
-  # Requeridos por treesitter y LSPs
+  # Python base: requerido por algunos plugins de nvim
   python3 python3-pip python3-venv \
-  # Zsh + utilidades para Oh My Zsh
+  # Zsh
   zsh \
   fontconfig \
-  # Otros útiles
+  # Utilidades extra
   tmux \
   htop \
   jq \
   && rm -rf /var/lib/apt/lists/*
 
-# Symlinks de nombres alternativos en Debian
+# Symlinks de nombres alternativos en Ubuntu/Debian
 RUN ln -sf /usr/bin/fdfind /usr/local/bin/fd \
   && ln -sf /usr/bin/batcat /usr/local/bin/bat
 
-# Locale UTF-8
+# ─── Locale UTF-8 ─────────────────────────────────────────────
 RUN sed -i '/en_US.UTF-8/s/^# //g' /etc/locale.gen && locale-gen
 ENV LANG=en_US.UTF-8
 ENV LANGUAGE=en_US:en
 ENV LC_ALL=en_US.UTF-8
 
 # ─── Crear usuario ─────────────────────────────────────────────
-# Shell = zsh para que el .zshrc de dotfiles funcione correctamente
+# Ubuntu 24.04 trae el usuario "ubuntu" por defecto — lo eliminamos
+# para evitar conflictos de UID con nuestro usuario custom.
+# Shell = zsh para que el .zshrc de dotfiles funcione correctamente.
 RUN userdel -r ubuntu 2>/dev/null || true \
   && groupadd --gid $USER_GID $USERNAME \
   && useradd --uid $USER_UID --gid $USER_GID -m -s /usr/bin/zsh $USERNAME \
   && echo "$USERNAME ALL=(ALL) NOPASSWD:ALL" > /etc/sudoers.d/$USERNAME \
   && chmod 0440 /etc/sudoers.d/$USERNAME
 
-# ─── Node.js (LTS via NodeSource) ─────────────────────────────
+# ─── Node.js LTS ──────────────────────────────────────────────
 RUN curl -fsSL https://deb.nodesource.com/setup_lts.x | bash - \
   && apt-get install -y nodejs \
   && rm -rf /var/lib/apt/lists/*
+
 # Providers de Neovim requeridos por plugins
 RUN npm install -g neovim \
   && pip3 install pynvim --break-system-packages
 
 # ─── Neovim ───────────────────────────────────────────────────
 # Versión fijada para builds reproducibles.
-# Para actualizar: cambiar NVIM_VERSION y hacer docker compose build --no-cache
+# Para actualizar: cambiar NVIM_VERSION y hacer --no-cache
 ARG NVIM_VERSION=v0.11.6
 RUN curl -LO "https://github.com/neovim/neovim/releases/download/${NVIM_VERSION}/nvim-linux-x86_64.tar.gz" \
   && tar -C /opt -xzf nvim-linux-x86_64.tar.gz \
@@ -98,7 +107,7 @@ RUN mkdir /var/run/sshd \
   && sed -i 's/#PubkeyAuthentication yes/PubkeyAuthentication yes/' /etc/ssh/sshd_config \
   && echo "AllowUsers $USERNAME" >> /etc/ssh/sshd_config
 
-# ─── A partir de acá todo como el usuario dev ─────────────────
+# ─── A partir de acá todo como el usuario ─────────────────────
 USER $USERNAME
 WORKDIR /home/$USERNAME
 
@@ -128,7 +137,7 @@ RUN curl -s "https://get.sdkman.io" | bash
 # hardcodeadas en ftplugin/java.lua:
 #   ~/.sdkman/candidates/java/21.0.8-tem/bin/java  ← cmd del LSP
 #   ~/.sdkman/candidates/java/17.0.16-tem          ← runtime JavaSE-17
-#   ~/.sdkman/candidates/java/8.0.482-tem           ← runtime JavaSE-1.8
+#   ~/.sdkman/candidates/java/8.0.482-tem          ← runtime JavaSE-1.8
 RUN bash -lc "\
   source \$HOME/.sdkman/bin/sdkman-init.sh && \
   sdk install java 21.0.8-tem && \
@@ -150,8 +159,9 @@ RUN echo '' >> ~/.bashrc \
   && echo '[[ -s "$HOME/.sdkman/bin/sdkman-init.sh" ]] && source "$HOME/.sdkman/bin/sdkman-init.sh"' >> ~/.bashrc
 
 # ─── Dotfiles ─────────────────────────────────────────────────
-# El perfil "devbox" instala solo nvim + zsh (sin wezterm, btop, rofi, etc.)
-# El symlink de .zshrc sobreescribe el .zshrc que creó Oh My Zsh — es intencional.
+# El perfil "devbox" instala solo nvim + zsh + git
+# (sin wezterm, btop, rofi, etc.)
+# El symlink de .zshrc sobreescribe el que creó Oh My Zsh — intencional.
 RUN if [ -n "$DOTFILES_REPO" ]; then \
   git clone "$DOTFILES_REPO" "$HOME/dotfiles" && \
   bash "$HOME/dotfiles/install.sh" devbox; \
