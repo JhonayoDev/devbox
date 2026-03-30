@@ -53,7 +53,8 @@ services:
       # ./nvim/cache → parsers de treesitter compilados, cache general
       - ./nvim/data:/home/${DEV_USERNAME:-juan}/.local/share/nvim
       - ./nvim/cache:/home/${DEV_USERNAME:-juan}/.cache/nvim
-
+      # ruta de servicio en server, comentar en otros
+      - ${SERVER_SERVICES_PATH:-}:/home/jhonayo/docker-services
     environment:
       USERNAME: ${DEV_USERNAME:-juan}
       TZ: ${TIMEZONE:-America/Argentina/Buenos_Aires}
