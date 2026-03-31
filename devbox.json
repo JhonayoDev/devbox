@@ -1,0 +1,43 @@
+{
+  "user": {
+    "dotfiles": "git@github.com:JhonayoDev/dotfiles.git",
+    "dotfiles_profile": "devbox",
+    "timezone": "America/Argentina/Buenos_Aires"
+  },
+  "features": {
+    "java": {
+      "enabled": true,
+      "versions": ["21.0.8-tem", "17.0.16-tem", "8.0.482-tem"],
+      "default": "21.0.8-tem"
+    },
+    "node": {
+      "enabled": true,
+      "version": "lts"
+    },
+    "flutter": {
+      "enabled": false,
+      "version": "latest"
+    },
+    "python": {
+      "enabled": false,
+      "packages": []
+    }
+  },
+  "services": {
+    "mysql": {
+      "enabled": false,
+      "version": "8.0",
+      "port": 3306
+    },
+    "postgres": {
+      "enabled": false,
+      "version": "16",
+      "port": 5432
+    },
+    "redis": {
+      "enabled": false,
+      "version": "7",
+      "port": 6379
+    }
+  }
+}
