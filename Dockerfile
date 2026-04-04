@@ -53,8 +53,8 @@ RUN --mount=type=ssh \
 RUN --mount=type=ssh \
   if [ -n "${DOTFILES_REPO}" ]; then \
   git clone "${DOTFILES_REPO}" /home/${USERNAME}/dotfiles && \
-  cd /home/${USERNAME}/dotfiles && \
-  bash install.sh devbox; \
+  chown -R ${USERNAME}:${USERNAME} /home/${USERNAME}/dotfiles && \
+  su - ${USERNAME} -c "bash /home/${USERNAME}/dotfiles/install.sh devbox"; \
   fi
 
 # ─── Entrypoint ───────────────────────────────────────────────
