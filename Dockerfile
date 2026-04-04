@@ -24,6 +24,14 @@ RUN usermod -l $USERNAME user && \
     mv /etc/sudoers.d/user /etc/sudoers.d/$USERNAME && \
     sed -i "s/^user ALL/$USERNAME ALL/" /etc/sudoers.d/$USERNAME
 
+
+# Crear las claves de ssh para coneccion a contenedor:
+
+
+
+
+
+
 # Clonar devbox-features en ruta neutra
 RUN git clone https://github.com/JhonayoDev/devbox-features.git /opt/devbox-features && \
     chmod -R 755 /opt/devbox-features
