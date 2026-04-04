@@ -4,13 +4,11 @@
 #  Uso:
 #    cp env.example .env     (completar valores)
 #    docker compose up -d --build
-#
-#  Para resetear nvim:       rm -rf ./nvim/
-#  Para borrar todo:         docker compose down && rm -rf ./nvim/ ./ssh-host-keys/
 # ─────────────────────────────────────────────────────────────
 
 services:
   devbox:
+    container_name: ${CONTAINER_NAME:-devbox}
     build:
       context: .
       dockerfile: Dockerfile
@@ -20,48 +18,31 @@ services:
         USER_GID: ${DEV_GID:-1000}
         DOTFILES_REPO: ${DOTFILES_REPO:-}
 
-    container_name: devbox
-
     ports:
       - "${SSH_PORT:-2222}:22"
 
     volumes:
-      # ── Proyectos ──────────────────────────────────────────
       # El código vive en el host — sobrevive cualquier recreación
       - ${DEV_PROJECTS_PATH:-./projects}:/home/${DEV_USERNAME:-user}/dev
 
-      # ── SSH host keys (por archivo) ────────────────────────
-      # Se montan individualmente para NO pisar el sshd_config
-      # que el Dockerfile configura dentro del contenedor.
-      # Los permisos los corrige entrypoint.sh al arrancar.
-      - ./ssh-host-keys/ssh_host_rsa_key:/etc/ssh/ssh_host_rsa_key
-      - ./ssh-host-keys/ssh_host_rsa_key.pub:/etc/ssh/ssh_host_rsa_key.pub
-      - ./ssh-host-keys/ssh_host_ecdsa_key:/etc/ssh/ssh_host_ecdsa_key
-      - ./ssh-host-keys/ssh_host_ecdsa_key.pub:/etc/ssh/ssh_host_ecdsa_key.pub
-      - ./ssh-host-keys/ssh_host_ed25519_key:/etc/ssh/ssh_host_ed25519_key
-      - ./ssh-host-keys/ssh_host_ed25519_key.pub:/etc/ssh/ssh_host_ed25519_key.pub
-
       # ── authorized_keys (clave pública del cliente SSH) ────
-      # El entrypoint la copia al lugar correcto con chmod 600
       - ${SSH_AUTHORIZED_KEYS_PATH:-./ssh/authorized_keys}:/run/secrets/authorized_keys:ro
 
       # ── Persistencia de Neovim ─────────────────────────────
-      # Sin estos bind mounts, cada recreación reinstala todos
-      # los plugins, LSPs y parsers de treesitter desde cero.
-      # ./nvim/data  → plugins de Lazy + binarios de Mason (jdtls, etc.)
-      # ./nvim/cache → parsers de treesitter compilados, cache general
-      - ./nvim/data:/home/${DEV_USERNAME:-user}/.local/share/nvim
-      - ./nvim/cache:/home/${DEV_USERNAME:-user}/.cache/nvim
+      - nvim_data:/home/${DEV_USERNAME:-user}/.local/share/nvim
+      - nvim_cache:/home/${DEV_USERNAME:-user}/.cache/nvim
 
       # ── Servicios del servidor (opcional) ─────────────────
-      # Montá una carpeta del host para editarla con nvim desde el devbox.
-      # Comentar o dejar vacío si no aplica en este entorno.
       # Ejemplo en servidor: SERVER_SERVICES_PATH=/opt/docker
       # ${SERVER_SERVICES_PATH}:/home/${DEV_USERNAME:-user}/docker-services
+
+      - ${SSH_AUTH_SOCK:-/tmp/ssh-agent}:/ssh-agent
 
     environment:
       USERNAME: ${DEV_USERNAME:-user}
       TZ: ${TIMEZONE:-America/Santiago}
+
+      SSH_AUTH_SOCK: /ssh-agent
 
     restart: unless-stopped
 
@@ -71,3 +52,6 @@ services:
       timeout: 5s
       retries: 3
       start_period: 10s
+volumes:
+  nvim_data:
+  nvim_cache:
