@@ -1,10 +1,25 @@
-FROM ghcr.io/jhonayodev/devbox-base:latest
+FROM ghcr.io/jhonayodev/devbox-base:latest AS base
 
 ARG USERNAME=user
 ARG USER_UID=1000
 ARG USER_GID=1000
 ARG DOTFILES_REPO
 ARG FEATURES_REPO
+
+# ─── Reconfigurar usuario si es distinto al default ───────────
+USER root
+RUN if [ "$USERNAME" != "user" ]; then \
+  # Renombrar usuario y grupo
+  usermod  -l "$USERNAME" user && \
+  groupmod -n "$USERNAME" user && \
+  # Mover home
+  usermod  -d /home/$USERNAME -m "$USERNAME" && \
+  # Actualizar sudoers
+  mv /etc/sudoers.d/user /etc/sudoers.d/$USERNAME && \
+  sed -i "s/^user /$USERNAME /" /etc/sudoers.d/$USERNAME && \
+  # Actualizar sshd AllowUsers
+  sed -i "s/AllowUsers user/AllowUsers $USERNAME/" /etc/ssh/sshd_config; \
+  fi
 
 # ─── SSH del usuario ──────────────────────────────────────────
 RUN mkdir -p /home/${USERNAME}/.ssh \
