@@ -25,8 +25,13 @@ RUN --mount=type=ssh \
   jq -r '.features | to_entries[] | select(.value.enabled == true) | .key' \
   /devbox/devbox.json | \
   while read -r feature; do \
+  script="/devbox/features/$feature/install.sh"; \
+  if [ -f "$script" ]; then \
   echo "[devbox] Instalando feature: $feature"; \
-  bash /devbox/features/$feature/install.sh; \
+  bash "$script"; \
+  else \
+  echo "[devbox] SKIP: $feature (sin install.sh)"; \
+  fi; \
   done
 
 # ─── Dotfiles (build time) ────────────────────────────────────

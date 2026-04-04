@@ -12,12 +12,14 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
+      ssh:
+        - default
       args:
         USERNAME: ${DEV_USERNAME:-user}
         USER_UID: ${DEV_UID:-1000}
         USER_GID: ${DEV_GID:-1000}
         DOTFILES_REPO: ${DOTFILES_REPO:-}
-
+        FEATURES_REPO: ${FEATURES_REPO}
     ports:
       - "${SSH_PORT:-2222}:22"
 
