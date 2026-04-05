@@ -1,0 +1,13 @@
+{
+  "name": "devbox",
+  "build": {
+    "dockerfile": "Dockerfile"
+  },
+  "remoteUser": "user",
+  "features": {
+    "ghcr.io/devcontainers/features/java:1": {
+      "version": "21",
+      "installGradle": "true"
+    }
+  }
+}
